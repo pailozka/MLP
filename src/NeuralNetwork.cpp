@@ -200,29 +200,30 @@ void Forward_Propagation() {
         Output_h2[i] = Sigmoid(tmp_potential);
     }
 
-    // FOR final layer softmax is used
-    float sum = 0.0;
+    // FOR final layer softmax is used (with log-sum-exp for numerical stability)
+    float max_pot = -1e30f;
     for (size_t i = 0; i < Output_Layer; i++) {
         float tmp_potential = Bias_o[i];
-
         for (size_t j = 0; j < Hidden_Layer2; j++) {
             tmp_potential += Weights_o[i][j] * Output_h2[j];
         }
-
         Potential_o[i] = tmp_potential;
-        sum += exp(tmp_potential);
+        if (tmp_potential > max_pot) max_pot = tmp_potential;
     }
 
-    for (size_t i = 0; i < Output_Layer; i++)
-    {
-        Output_o[i] = exp(Potential_o[i]) / sum;
+    float sum = 0.0;
+    for (size_t i = 0; i < Output_Layer; i++) {
+        sum += exp(Potential_o[i] - max_pot);
+    }
+    for (size_t i = 0; i < Output_Layer; i++) {
+        Output_o[i] = exp(Potential_o[i] - max_pot) / sum;
     }
 }
 
 float cross_entropy() {
     float loss = 0.0;
     for (size_t i = 0; i < Output_Layer; i++) {
-        loss += -1 * (Output_Expected[i] * std::log2(Output_o[i] + stabilization)); // add binary cross entropy
+        loss += -1 * (Output_Expected[i] * std::log(Output_o[i] + stabilization));
     }
     return loss;
 }
@@ -375,45 +376,23 @@ int Train() {
 
     for (; i < epoch; i++) {
         shuffle_data(seed);
-        printf("%d", seed);
-        // seed+=1;
+        Reinit_moments();
         int index = 0;
-        int batch_num = 1;
-        int count = 0;
-        for (int j = 0; j < Train_Data_size * 0.9 - ((int)(Train_Data_size * 0.9) % BatchSize); j += BatchSize) {
-            count = 0;
-            int num_good_results = 0;
-            float total_cross_entropy = 0.0;
-            Reinit_moments();
-            while (count < BatchSize) {
-                // printf("%d and %d and %d \n", index, train_index[index], batch_num);
-                printf("entropy: %f\n", cross_entropy());
-                total_cross_entropy += cross_entropy();
+        int train_samples = (int)(Train_Data_size * 0.9);
+        train_samples -= train_samples % BatchSize;
 
+        for (int j = 0; j < train_samples; j += BatchSize) {
+            for (int b = 0; b < BatchSize; b++) {
                 learning(train_index[index]);
                 index++;
-                count++;
-
-                if (cross_entropy() < 0.001) {
-                    num_good_results += 1;
-                    if (num_good_results == 3) {
-                        printf("stopping on entropy: %f\n", cross_entropy());
-                        break;
-                    }
-                }
             }
-
-            index = j;
-            batch_num++;
-
-            if (batch_num * BatchSize >= 0.9 * Train_Data_size) {
-                break;
-            }
-
         }
-        float accuracy = validate();
-        if (accuracy / (Train_Data_size * 0.1) > 0.94) {
-                return i;
+
+        float acc = validate();
+        float val_acc = acc / validation_index.size();
+        printf("Epoch %d val_acc: %.4f\n", i + 1, val_acc);
+        if (val_acc > 0.94) {
+            return i;
         }
     }
     return i;
