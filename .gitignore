@@ -1,0 +1,11 @@
+/build/
+/cmake-build-*/
+/.idea/
+/network
+/runs/
+/data/prepared/
+/data/raw/
+__pycache__/
+*.pyc
+*.mlp
+*_predictions.csv

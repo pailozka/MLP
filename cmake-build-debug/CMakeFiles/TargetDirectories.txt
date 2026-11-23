@@ -1,3 +1,0 @@
-/home/karen/Desktop/pv021_project/cmake-build-debug/CMakeFiles/pv021_project.dir
-/home/karen/Desktop/pv021_project/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/karen/Desktop/pv021_project/cmake-build-debug/CMakeFiles/rebuild_cache.dir

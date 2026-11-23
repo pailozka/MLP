@@ -1,9 +1,39 @@
-cmake_minimum_required(VERSION 3.21)
-project(pv021_project)
+cmake_minimum_required(VERSION 3.16)
+project(fashion_mlp VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+option(MLP_ENABLE_SANITIZERS "Enable address and undefined-behavior sanitizers" OFF)
 
-add_executable(pv021_project
-        src/NeuralNetwork.cpp
-        src/activation.cpp
-        src/data.cpp)
+add_library(mlp_core src/network.cpp src/data.cpp src/trainer.cpp)
+target_include_directories(mlp_core PUBLIC include)
+target_compile_features(mlp_core PUBLIC cxx_std_17)
+set_target_properties(mlp_core PROPERTIES CXX_EXTENSIONS OFF)
+if(MSVC)
+    target_compile_options(mlp_core PRIVATE /W4)
+else()
+    target_compile_options(mlp_core PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+if(MLP_ENABLE_SANITIZERS)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32)
+        target_compile_options(mlp_core PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(mlp_core PUBLIC -fsanitize=address,undefined)
+    else()
+        message(FATAL_ERROR "Sanitizers require GCC or Clang on a supported Unix platform")
+    endif()
+endif()
+
+add_executable(mlp src/main.cpp)
+target_link_libraries(mlp PRIVATE mlp_core)
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(mlp_tests tests/test_mlp.cpp)
+    target_link_libraries(mlp_tests PRIVATE mlp_core)
+    add_test(NAME numerical_and_training COMMAND mlp_tests)
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(NAME cli_integration COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.py $<TARGET_FILE:mlp>)
+        add_test(NAME python_utilities COMMAND ${Python3_EXECUTABLE}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_utilities.py)
+    endif()
+endif()

@@ -1,0 +1,21 @@
+name: C++ verification
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        configuration: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} -DMLP_ENABLE_SANITIZERS=${{ matrix.configuration == 'Debug' && 'ON' || 'OFF' }}
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test without downloading data
+        run: ctest --test-dir build --output-on-failure
